@@ -1,0 +1,16 @@
+{
+  "name": "astra-ai",
+  "version": "1.0.0",
+  "description": "Astra-AI — Local-server architecture AI terminal agent",
+  "private": true,
+  "workspaces": ["cli"],
+  "scripts": {
+    "setup":        "npm run setup:cli && npm run setup:server",
+    "setup:cli":    "cd cli && npm install",
+    "setup:server": "cd server && pip install -r requirements.txt",
+    "server":       "cd server && python main.py",
+    "cli":          "cd cli && node agent.js init",
+    "dev":          "concurrently \"npm run server\" \"sleep 3 && npm run cli\""
+  },
+  "license": "MIT"
+}

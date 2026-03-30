@@ -1,0 +1,22 @@
+{
+  "name": "astra-agent",
+  "version": "1.0.0",
+  "description": "High-speed AI Terminal Agent CLI — Node.js client for Astra-AI",
+  "main": "agent.js",
+  "bin": {
+    "astra-agent": "./agent.js"
+  },
+  "scripts": {
+    "start":        "node agent.js init",
+    "start-server": "node agent.js start-server",
+    "lint":         "eslint agent.js"
+  },
+  "keywords": ["ai", "terminal", "cli", "langchain", "gemini", "agent"],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "axios": "^1.7.9"
+  }
+}
