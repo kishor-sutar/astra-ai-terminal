@@ -404,6 +404,48 @@ async function init() {
         `  ${fmt.warn("Run this command? (Y/n) ")}`);
 
       if (ans === "" || ans === "y" || ans === "yes") {
+        // ── Pre-execution file existence check ──────────────────────────────
+        const fs = require("fs");
+        const path = require("path");
+        const fileMatch = command.match(/\b[\w-]+\.\w+\b/);
+        if (fileMatch) {
+          const targetFile = fileMatch[0];
+          const fullPath = path.join(process.cwd(), targetFile);
+          if (!fs.existsSync(fullPath)) {
+            // File doesn't exist — find similar files
+            const files = fs.readdirSync(process.cwd());
+            const similar = files.filter(f => {
+              const ext = path.extname(targetFile);
+              const base = path.basename(targetFile, ext);
+              return f.endsWith(ext) && f !== targetFile &&
+                (f.includes(base) || base.includes(path.basename(f, ext)));
+            });
+
+            console.log(`\n  ${fmt.warn(`⚠  File "${targetFile}" does not exist in current directory.`)}`);
+            if (similar.length > 0) {
+              console.log(`  ${fmt.dim("Did you mean:")} ${similar.map(f => fmt.highlight(f)).join(", ")}`);
+              const suggestion = await askConfirm(rl,
+                `  ${fmt.warn(`Use "${similar[0]}" instead? (Y/n) `)}`);
+              if (suggestion === "" || suggestion === "y" || suggestion === "yes") {
+                command = command.replace(targetFile, similar[0]);
+                console.log(`  ${fmt.success(`✓ Using "${similar[0]}" instead.`)}\n`);
+              } else {
+                console.log(`  ${fmt.dim("Proceeding with original command anyway...\n")}`);
+              }
+            } else {
+              console.log(`  ${fmt.dim("No similar files found in current directory.")}`);
+              const proceed = await askConfirm(rl,
+                `  ${fmt.warn("Proceed anyway? (y/N) ")}`);
+              if (proceed !== "y" && proceed !== "yes") {
+                console.log(`  ${fmt.dim("Aborted.\n")}`);
+                prompt();
+                return;
+              }
+            }
+            console.log();
+          }
+        }
+
         console.log(`\n  ${fmt.dim("─── Output ─────────────────────────────────")}\n`);
         const exitCode = await executeCommand(command, shell);
         console.log(`\n  ${fmt.dim("────────────────────────────────────────────")}`);
