@@ -294,7 +294,8 @@ async function init() {
 
   // ── REPL ──────────────────────────────────────────────────────────────────
   const prompt = () => {
-    rl.question(`${c.cyan}${c.bold}  astra${c.reset}${c.gray} ❯${c.reset} `, async (input) => {
+    const cwd = process.cwd();
+    rl.question(`${c.gray}${cwd}${c.reset}\n${c.cyan}${c.bold}  astra${c.reset}${c.gray} ❯${c.reset} `, async (input) => {
       const trimmed = input.trim();
 
       if (!trimmed) { prompt(); return; }
@@ -453,7 +454,7 @@ async function init() {
         //   }
         // }
 
-        
+
 
         console.log(`\n  ${fmt.dim("─── Output ─────────────────────────────────")}\n`);
         const exitCode = await executeCommand(command, shell);
