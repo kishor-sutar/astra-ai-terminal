@@ -596,7 +596,7 @@ def _search_cache(query: str, shell: str):
         if similarity >= SIMILARITY_THRESHOLD:
             command = results["metadatas"][0][0]["command"]
             return command, round(similarity, 4)
-        return None, None
+        return None, round(similarity, 4)
     except Exception as e:
         print(f"Cache search error: {e}")
         return None, None
@@ -676,8 +676,10 @@ async def generate(req: CommandRequest):
 
     shell = req.shell.lower()
 
-    # 1️⃣  Semantic cache lookup
+# 1️⃣  Semantic cache lookup
     cached_cmd, similarity = _search_cache(req.query, shell)
+    best_similarity = similarity  # keep score even on miss for confidence warning
+
     if cached_cmd:
         cached_cmd = _substitute_filenames(req.query, cached_cmd)
         _log_mongo(req.query, shell, cached_cmd, True, req.session_id)
@@ -703,7 +705,7 @@ async def generate(req: CommandRequest):
         command=command,
         shell=shell,
         cache_hit=False,
-        similarity=None,
+        similarity=best_similarity,
         session_id=req.session_id,
     )
 

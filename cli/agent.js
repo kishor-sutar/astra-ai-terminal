@@ -12,6 +12,7 @@ const { exec, spawn } = require("child_process");
 const os        = require("os");
 const path      = require("path");
 const fs        = require("fs");
+const SIMILARITY_THRESHOLD = 0.9;
 
 // ── Config ────────────────────────────────────────────────────────────────────
 const CONFIG_PATH   = path.join(os.homedir(), ".astra-ai", "config.json");
@@ -420,6 +421,11 @@ async function init() {
       sessionStats.total++;
       if (cache_hit) sessionStats.cacheHits++;
       else sessionStats.llmCalls++;
+
+  // Confidence warning (similarity between 0.75 and threshold)
+      if (!cache_hit && similarity && similarity >= 0.75 && similarity < SIMILARITY_THRESHOLD) {
+        console.log(`\n  ${fmt.warn(`⚠  Low confidence match (similarity: ${similarity}) — sending to AI to verify`)}`);
+      }
 
       const cacheLabel = cache_hit
         ? fmt.success(`  ⚡ Cache hit  (similarity: ${similarity})`)
