@@ -75,6 +75,7 @@ function detectShell() {
 function generateSessionId() {
   return `astra_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
+const sessionHistory = [];
 
 // ── HTTP helpers (using built-in fetch / fallback to https module) ─────────────
 async function fetchJson(url, options = {}) {
@@ -136,7 +137,13 @@ async function generateCommand(query, shell, sessionId) {
   return fetchJson(`${SERVER_URL}/generate`, {
     method:  "POST",
     headers: { "Content-Type": "application/json" },
-    body:    JSON.stringify({ query, shell, session_id: sessionId, os_info: os.platform() }),
+    body:    JSON.stringify({ 
+      query, 
+      shell, 
+      session_id: sessionId, 
+      os_info: os.platform(),
+      history: sessionHistory.slice(-3),
+    }),
   });
 }
 
@@ -449,13 +456,15 @@ async function init() {
         console.log(`\n  ${fmt.dim("─── Output ─────────────────────────────────")}\n`);
         const exitCode = await executeCommand(command, shell);
         console.log(`\n  ${fmt.dim("────────────────────────────────────────────")}`);
-        if (exitCode === 0) {
+       if (exitCode === 0) {
           console.log(`  ${fmt.success("✓ Command completed successfully.")}\n`);
+          sessionHistory.push({ query: trimmed, command });
         } else {
           console.log(`  ${fmt.warn(`⚠  Command exited with code ${exitCode}.`)}\n`);
         }
       } else {
         console.log(`  ${fmt.dim("Skipped.\n")}`);
+        sessionHistory.push({ query: trimmed, command });
       }
 
       prompt();

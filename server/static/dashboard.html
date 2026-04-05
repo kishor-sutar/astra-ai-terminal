@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Astra-AI Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg:       #0a0a0f;
+    --surface:  #111118;
+    --border:   #1e1e2e;
+    --accent:   #00ffe0;
+    --accent2:  #7c6aff;
+    --warn:     #ffb347;
+    --text:     #e2e2f0;
+    --muted:    #5a5a7a;
+    --hit:      #00ffe0;
+    --miss:     #7c6aff;
+    --font-ui:  'Syne', sans-serif;
+    --font-mono:'JetBrains Mono', monospace;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-ui);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Grid bg ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 40px 40px;
+    opacity: 0.35;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── Glow orbs ── */
+  .orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(120px);
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.12;
+  }
+  .orb-1 { width: 500px; height: 500px; background: var(--accent);  top: -150px; left: -100px; }
+  .orb-2 { width: 400px; height: 400px; background: var(--accent2); bottom: -100px; right: -100px; }
+
+  /* ── Layout ── */
+  .shell {
+    position: relative;
+    z-index: 1;
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 24px 60px;
+  }
+
+  /* ── Header ── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 28px 0 32px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 36px;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .logo-mark {
+    width: 38px; height: 38px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: 14px;
+    color: #000;
+    letter-spacing: -1px;
+    flex-shrink: 0;
+  }
+
+  .logo-text {
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    color: var(--text);
+  }
+
+  .logo-text span { color: var(--accent); }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .status-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 6px 14px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .status-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: background 0.3s;
+  }
+  .status-dot.online { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+
+  .refresh-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 16px;
+    color: var(--muted);
+    font-family: var(--font-ui);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── Stat cards ── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+
+  @media (max-width: 900px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 500px) { .stats-grid { grid-template-columns: 1fr; } }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 22px 24px;
+    position: relative;
+    overflow: hidden;
+    animation: fadeUp 0.5s ease both;
+  }
+
+  .stat-card::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent-card, var(--accent)), transparent);
+    opacity: 0.6;
+  }
+
+  .stat-card:nth-child(2) { --accent-card: var(--accent2); }
+  .stat-card:nth-child(3) { --accent-card: var(--warn); }
+  .stat-card:nth-child(4) { --accent-card: #ff6b9d; }
+
+  .stat-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+
+  .stat-value {
+    font-family: var(--font-mono);
+    font-size: 36px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+
+  .stat-sub {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: var(--font-mono);
+  }
+
+  /* ── Main grid ── */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 20px;
+    align-items: start;
+  }
+
+  @media (max-width: 1024px) { .main-grid { grid-template-columns: 1fr; } }
+
+  /* ── Panel ── */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    animation: fadeUp 0.5s ease both;
+  }
+
+  .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .panel-title {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .panel-badge {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    background: rgba(0,255,224,0.08);
+    border: 1px solid rgba(0,255,224,0.2);
+    color: var(--accent);
+    border-radius: 999px;
+    padding: 3px 10px;
+  }
+
+  /* ── Log table ── */
+  .log-list {
+    max-height: 520px;
+    overflow-y: auto;
+  }
+
+  .log-list::-webkit-scrollbar { width: 4px; }
+  .log-list::-webkit-scrollbar-track { background: transparent; }
+  .log-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .log-row {
+    display: grid;
+    grid-template-columns: 70px 1fr 90px 100px;
+    align-items: center;
+    padding: 14px 24px;
+    border-bottom: 1px solid var(--border);
+    gap: 16px;
+    transition: background 0.15s;
+    animation: fadeUp 0.3s ease both;
+  }
+
+  .log-row:hover { background: rgba(255,255,255,0.02); }
+  .log-row:last-child { border-bottom: none; }
+
+  .log-type {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    border-radius: 6px;
+    padding: 4px 8px;
+    text-align: center;
+  }
+
+  .log-type.hit  { background: rgba(0,255,224,0.1);  color: var(--hit);  border: 1px solid rgba(0,255,224,0.25); }
+  .log-type.miss { background: rgba(124,106,255,0.1); color: var(--miss); border: 1px solid rgba(124,106,255,0.25); }
+
+  .log-query {
+    font-size: 13px;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .log-cmd {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    grid-column: 2;
+    margin-top: -8px;
+  }
+
+  .log-shell {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--muted);
+    text-align: right;
+  }
+
+  .log-time {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--muted);
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  /* ── Right column ── */
+  .right-col { display: flex; flex-direction: column; gap: 20px; }
+
+  /* ── Cache ring ── */
+  .ring-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 28px 24px;
+    gap: 20px;
+  }
+
+  .ring-container { position: relative; width: 140px; height: 140px; }
+
+  .ring-svg { transform: rotate(-90deg); }
+
+  .ring-bg { fill: none; stroke: var(--border); stroke-width: 10; }
+  .ring-hit {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 10;
+    stroke-linecap: round;
+    stroke-dasharray: 376;
+    stroke-dashoffset: 376;
+    transition: stroke-dashoffset 1.2s cubic-bezier(0.4,0,0.2,1);
+    filter: drop-shadow(0 0 6px var(--accent));
+  }
+
+  .ring-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .ring-pct {
+    font-family: var(--font-mono);
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1;
+  }
+
+  .ring-label {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+
+  .ring-legend {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .legend-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+  }
+
+  .legend-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .legend-left { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+  .legend-val  { font-family: var(--font-mono); font-weight: 600; color: var(--text); }
+
+  /* ── Components panel ── */
+  .comp-list { padding: 8px 0; }
+
+  .comp-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  .comp-row:last-child { border-bottom: none; }
+
+  .comp-name { font-size: 13px; color: var(--text); }
+  .comp-val  {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--accent);
+    background: rgba(0,255,224,0.06);
+    border: 1px solid rgba(0,255,224,0.15);
+    border-radius: 6px;
+    padding: 3px 10px;
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* ── Empty state ── */
+  .empty {
+    padding: 60px 24px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+    font-family: var(--font-mono);
+  }
+
+  /* ── Log row two-line layout ── */
+  .log-row { grid-template-rows: auto auto; }
+  .log-query-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+  }
+
+  /* ── Animations ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .stat-card:nth-child(1) { animation-delay: 0.05s; }
+  .stat-card:nth-child(2) { animation-delay: 0.10s; }
+  .stat-card:nth-child(3) { animation-delay: 0.15s; }
+  .stat-card:nth-child(4) { animation-delay: 0.20s; }
+
+  /* ── Skeleton loader ── */
+  .skeleton {
+    background: linear-gradient(90deg, var(--border) 25%, #1e1e35 50%, var(--border) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s infinite;
+    border-radius: 6px;
+  }
+  @keyframes shimmer { to { background-position: -200% 0; } }
+</style>
+</head>
+<body>
+
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+
+<div class="shell">
+
+  <!-- Header -->
+  <header>
+    <div class="logo">
+      <div class="logo-mark">A⚡</div>
+      <div class="logo-text">Astra<span>-AI</span> Dashboard</div>
+    </div>
+    <div class="header-right">
+      <div class="status-pill">
+        <div class="status-dot" id="status-dot"></div>
+        <span id="status-text">Connecting...</span>
+      </div>
+      <button class="refresh-btn" onclick="loadAll()">↻ Refresh</button>
+    </div>
+  </header>
+
+  <!-- Stat cards -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-label">Total Commands</div>
+      <div class="stat-value" id="stat-total">—</div>
+      <div class="stat-sub" id="stat-total-sub">loading...</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Cache Hits</div>
+      <div class="stat-value" id="stat-hits">—</div>
+      <div class="stat-sub" id="stat-hits-sub">loading...</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">LLM Calls</div>
+      <div class="stat-value" id="stat-llm">—</div>
+      <div class="stat-sub" id="stat-llm-sub">loading...</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Cache Entries</div>
+      <div class="stat-value" id="stat-cache">—</div>
+      <div class="stat-sub" id="stat-cache-sub">loading...</div>
+    </div>
+  </div>
+
+  <!-- Main grid -->
+  <div class="main-grid">
+
+    <!-- Command log -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Command Log</div>
+        <div class="panel-badge" id="log-count">0 entries</div>
+      </div>
+      <div class="log-list" id="log-list">
+        <div class="empty">Loading command history...</div>
+      </div>
+    </div>
+
+    <!-- Right column -->
+    <div class="right-col">
+
+      <!-- Cache hit ring -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Cache Performance</div>
+        </div>
+        <div class="ring-wrap">
+          <div class="ring-container">
+            <svg class="ring-svg" width="140" height="140" viewBox="0 0 140 140">
+              <circle class="ring-bg"  cx="70" cy="70" r="60"/>
+              <circle class="ring-hit" cx="70" cy="70" r="60" id="ring-arc"/>
+            </svg>
+            <div class="ring-center">
+              <div class="ring-pct" id="ring-pct">0%</div>
+              <div class="ring-label">hit rate</div>
+            </div>
+          </div>
+          <div class="ring-legend">
+            <div class="legend-row">
+              <div class="legend-left">
+                <div class="legend-dot" style="background:var(--hit)"></div>
+                Cache hits
+              </div>
+              <div class="legend-val" id="leg-hits">0</div>
+            </div>
+            <div class="legend-row">
+              <div class="legend-left">
+                <div class="legend-dot" style="background:var(--miss)"></div>
+                LLM calls
+              </div>
+              <div class="legend-val" id="leg-miss">0</div>
+            </div>
+            <div class="legend-row">
+              <div class="legend-left">
+                <div class="legend-dot" style="background:var(--muted)"></div>
+                Threshold
+              </div>
+              <div class="legend-val" id="leg-thresh">0.9</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Engine components -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Engine Status</div>
+        </div>
+        <div class="comp-list" id="comp-list">
+          <div class="empty">Loading...</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+const API = window.location.origin;
+
+async function fetchJSON(path) {
+  const res = await fetch(API + path);
+  if (!res.ok) throw new Error(res.status);
+  return res.json();
+}
+
+function timeAgo(iso) {
+  const diff = Date.now() - new Date(iso).getTime();
+  const s = Math.floor(diff / 1000);
+  if (s < 60)  return `${s}s ago`;
+  if (s < 3600) return `${Math.floor(s/60)}m ago`;
+  return `${Math.floor(s/3600)}h ago`;
+}
+
+function setStatus(online) {
+  document.getElementById('status-dot').className = 'status-dot' + (online ? ' online' : '');
+  document.getElementById('status-text').textContent = online ? 'Engine online' : 'Engine offline';
+}
+
+function setRing(pct) {
+  const circumference = 2 * Math.PI * 60; // 376.99
+  const arc = document.getElementById('ring-arc');
+  const offset = circumference - (pct / 100) * circumference;
+  arc.style.strokeDashoffset = offset;
+  document.getElementById('ring-pct').textContent = pct + '%';
+}
+
+async function loadHealth() {
+  try {
+    const h = await fetchJSON('/health');
+    setStatus(true);
+    const rows = [
+      ['Model',   h.components.llm],
+      ['Cache',   h.components.cache],
+      ['Storage', h.components.storage],
+      ['Version', h.version],
+    ];
+    document.getElementById('comp-list').innerHTML = rows.map(([k, v]) => `
+      <div class="comp-row">
+        <div class="comp-name">${k}</div>
+        <div class="comp-val" title="${v}">${v}</div>
+      </div>
+    `).join('');
+  } catch {
+    setStatus(false);
+  }
+}
+
+async function loadCacheStats() {
+  try {
+    const s = await fetchJSON('/cache/stats');
+    document.getElementById('stat-cache').textContent = s.count;
+    document.getElementById('stat-cache-sub').textContent = `threshold ${s.threshold}`;
+    document.getElementById('leg-thresh').textContent = s.threshold;
+  } catch {
+    document.getElementById('stat-cache').textContent = '—';
+  }
+}
+
+async function loadHistory() {
+  try {
+    const data = await fetchJSON('/history?limit=100');
+    const logs = data.logs || [];
+
+    const total = logs.length;
+    const hits  = logs.filter(l => l.cache_hit).length;
+    const misses = total - hits;
+    const pct   = total > 0 ? Math.round((hits / total) * 100) : 0;
+
+    document.getElementById('stat-total').textContent = total;
+    document.getElementById('stat-total-sub').textContent = 'all time sessions';
+    document.getElementById('stat-hits').textContent  = hits;
+    document.getElementById('stat-hits-sub').textContent = `${pct}% of total`;
+    document.getElementById('stat-llm').textContent   = misses;
+    document.getElementById('stat-llm-sub').textContent = `API calls made`;
+
+    document.getElementById('leg-hits').textContent = hits;
+    document.getElementById('leg-miss').textContent = misses;
+    document.getElementById('log-count').textContent = `${total} entries`;
+
+    setRing(pct);
+
+    if (logs.length === 0) {
+      document.getElementById('log-list').innerHTML =
+        '<div class="empty">No commands logged yet. Start using astra-agent!</div>';
+      return;
+    }
+
+    document.getElementById('log-list').innerHTML = logs.map((log, i) => `
+      <div class="log-row" style="animation-delay:${i * 0.03}s">
+        <div class="log-type ${log.cache_hit ? 'hit' : 'miss'}">
+          ${log.cache_hit ? '⚡ CACHE' : '🔮 LLM'}
+        </div>
+        <div class="log-query-wrap">
+          <div class="log-query" title="${log.query}">${log.query}</div>
+          <div class="log-cmd" title="${log.command}">$ ${log.command}</div>
+        </div>
+        <div class="log-shell">${log.shell || 'bash'}</div>
+        <div class="log-time">${log.timestamp ? timeAgo(log.timestamp) : '—'}</div>
+      </div>
+    `).join('');
+
+  } catch (e) {
+    document.getElementById('log-list').innerHTML =
+      '<div class="empty">Could not load history. Is MongoDB connected?</div>';
+  }
+}
+
+async function loadAll() {
+  await Promise.all([loadHealth(), loadCacheStats(), loadHistory()]);
+}
+
+// Initial load + auto-refresh every 10s
+loadAll();
+setInterval(loadAll, 10000);
+</script>
+</body>
+</html>
