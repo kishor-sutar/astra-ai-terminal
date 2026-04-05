@@ -407,11 +407,38 @@ async function init() {
       console.log(fmt.cmd(command));
       console.log();
 
+      // Danger detection
+      const dangerPatterns = [
+        /rm\s+-rf/i,
+        /Remove-Item.*-Force/i,
+        /Remove-Item.*-Recurse/i,
+        /\|\s*Remove-Item/i,
+        /format\s+[a-z]:/i,
+        /del\s+\/[sf]/i,
+        /rd\s+\/s/i,
+        /rmdir\s+\/s/i,
+        /drop\s+database/i,
+        /drop\s+table/i,
+        /git\s+push.*--force/i,
+        />\s*\/dev\/sd/i,
+        /mkfs/i,
+        /-Recurse.*-File.*\|\s*Remove/i,
+      ];
+      const isDangerous = dangerPatterns.some(p => p.test(command));
+
+      if (isDangerous) {
+        console.log(`\n  ${c.red}${c.bold}  ⚠  DANGEROUS COMMAND DETECTED${c.reset}`);
+        console.log(`  ${c.red}  This command can cause irreversible damage.${c.reset}`);
+        console.log(`  ${c.red}  Double-check before proceeding.${c.reset}\n`);
+      }
+
       // Confirm execution
       const ans = await askConfirm(rl,
-        `  ${fmt.warn("Run this command? (Y/n) ")}`);
+        isDangerous
+          ? `  ${c.red}${c.bold}Run this DANGEROUS command? (y/N) ${c.reset}`
+          : `  ${fmt.warn("Run this command? (Y/n) ")}`);
 
-      if (ans === "" || ans === "y" || ans === "yes") {
+      if (isDangerous ? (ans === "y" || ans === "yes") : (ans === "" || ans === "y" || ans === "yes")) {
         // // ── Pre-execution file existence check ──────────────────────────────
         // const fs = require("fs");
         // const path = require("path");
