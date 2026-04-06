@@ -14,7 +14,7 @@ from config import GEMINI_MODEL
 router = APIRouter()
 
 @router.get("/health", response_model=HealthResponse)
-async def health(request):
+async def health():
     chroma_col = get_chroma_col()
     mongo_db   = get_mongo_db()
     return {
