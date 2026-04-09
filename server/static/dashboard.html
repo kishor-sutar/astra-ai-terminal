@@ -4,6 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Astra-AI Dashboard</title>
+<link rel="icon" type="image/png" href="/static/fevicon.png"/>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet"/>
 <style>
   :root {
@@ -283,6 +284,7 @@
 
   .log-type.hit  { background: rgba(0,255,224,0.1);  color: var(--hit);  border: 1px solid rgba(0,255,224,0.25); }
   .log-type.miss { background: rgba(124,106,255,0.1); color: var(--miss); border: 1px solid rgba(124,106,255,0.25); }
+  .log-type.rag  { background: rgba(255,179,71,0.1);  color: var(--warn); border: 1px solid rgba(255,179,71,0.25); }
 
   .log-query {
     font-size: 13px;
@@ -655,11 +657,13 @@ async function loadHistory() {
     document.getElementById('stat-total-sub').textContent = 'all time sessions';
     document.getElementById('stat-hits').textContent  = hits;
     document.getElementById('stat-hits-sub').textContent = `${pct}% of total`;
+    const rags = logs.filter(l => !l.cache_hit && l.rag_assisted).length;
+    const pure = misses - rags;
     document.getElementById('stat-llm').textContent   = misses;
-    document.getElementById('stat-llm-sub').textContent = `API calls made`;
+    document.getElementById('stat-llm-sub').textContent = `${rags} RAG, ${pure} pure LLM`;
 
     document.getElementById('leg-hits').textContent = hits;
-    document.getElementById('leg-miss').textContent = misses;
+    document.getElementById('leg-miss').textContent = `${misses} (${rags} RAG)`;
     document.getElementById('log-count').textContent = `${total} entries`;
 
     setRing(pct);
@@ -670,10 +674,10 @@ async function loadHistory() {
       return;
     }
 
-    document.getElementById('log-list').innerHTML = logs.map((log, i) => `
+document.getElementById('log-list').innerHTML = logs.    map((log, i) => `
       <div class="log-row" style="animation-delay:${i * 0.03}s">
-        <div class="log-type ${log.cache_hit ? 'hit' : 'miss'}">
-          ${log.cache_hit ? '⚡ CACHE' : '🔮 LLM'}
+        <div class="log-type ${log.cache_hit ? 'hit' : log.rag_assisted ? 'rag' : 'miss'}">
+          ${log.cache_hit ? '⚡ CACHE' : log.rag_assisted ? '📚 RAG' : '🔮 LLM'}
         </div>
         <div class="log-query-wrap">
           <div class="log-query" title="${log.query}">${log.query}</div>

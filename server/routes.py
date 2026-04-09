@@ -2,6 +2,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 
+
 from models import (CommandRequest, CommandResponse,
                     ExplainRequest, ExplainResponse, HealthResponse)
 from cache import (search_cache, store_cache, substitute_filenames,
@@ -47,18 +48,26 @@ async def generate(req: CommandRequest, request=None):
             session_id=req.session_id,
         )
 
+    from config import MAX_RETRIEVAL
+    from cache import retrieve_similar
+    retrieved = retrieve_similar(req.query, shell, MAX_RETRIEVAL)
+    
+ # 3️ LLM with RAG + multi-turn context
     try:
-        from main import app
-        command = await generate_command(app.state.llm, req.query, shell, req.history)
+        command, rag_used = await generate_command(
+            app.state.llm, req.query, shell, req.history, retrieved)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"LLM error: {e}")
 
+    # 4️  Store in cache + MongoDB
     store_cache(req.query, shell, command)
-    log_command(req.query, shell, command, False, req.session_id)
+    log_command(req.query, shell, command, False, req.session_id,
+                rag_assisted=rag_used)
 
     return CommandResponse(
         command=command, shell=shell,
-        cache_hit=False, similarity=best_similarity,
+        cache_hit=False, rag_assisted=rag_used,
+        similarity=best_similarity,
         session_id=req.session_id,
     )
 

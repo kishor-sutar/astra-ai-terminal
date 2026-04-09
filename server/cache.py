@@ -57,6 +57,32 @@ def search_cache(query: str, shell: str):
         print(f"Cache search error: {e}")
         return None, None
 
+
+def retrieve_similar(query: str, shell: str, n: int = 3):
+    if chroma_col is None:
+        return []
+    try:
+        count = chroma_col.count()
+        if count == 0:
+            return []
+        results = chroma_col.query(
+            query_texts=[_cache_key(query, shell)],
+            n_results=min(n, count),
+            include=["metadatas", "distances"],
+        )
+        items = []
+        for meta, dist in zip(results["metadatas"][0], results["distances"][0]):
+            items.append({
+                "query":      meta.get("query", ""),
+                "command":    meta.get("command", ""),
+                "similarity": round(1.0 - dist, 4),
+            })
+        return items
+    except Exception as e:
+        print(f"RAG retrieval error: {e}")
+        return []
+    
+    
 def store_cache(query: str, shell: str, command: str):
     if chroma_col is None:
         return

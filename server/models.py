@@ -9,11 +9,12 @@ class CommandRequest(BaseModel):
     history:    list          = []
 
 class CommandResponse(BaseModel):
-    command:    str
-    shell:      str
-    cache_hit:  bool
-    similarity: Optional[float] = None
-    session_id: Optional[str]   = None
+    command:      str
+    shell:        str
+    cache_hit:    bool
+    rag_assisted: bool            = False
+    similarity:   Optional[float] = None
+    session_id:   Optional[str]   = None
 
 class ExplainRequest(BaseModel):
     command: str

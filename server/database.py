@@ -22,7 +22,9 @@ def get_mongo_db():
     return mongo_db
 
 def log_command(query: str, shell: str, command: str,
-                cache_hit: bool, session_id: Optional[str]):
+                cache_hit: bool, session_id: Optional[str],
+                rag_assisted: bool = False):
+                
     if mongo_db is None:
         return
     try:
@@ -34,6 +36,7 @@ def log_command(query: str, shell: str, command: str,
             "session_id": session_id,
             "timestamp":  datetime.now(timezone.utc),
             "os":         platform.system(),
+            "rag_assisted": rag_assisted,
         })
     except Exception as e:
         print(f"Mongo log error: {e}")
