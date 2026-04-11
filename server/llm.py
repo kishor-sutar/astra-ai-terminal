@@ -16,23 +16,7 @@ def init_llm():
     print(f"✅ LLM ready  (model={GEMINI_MODEL})")
     return llm
 
-# async def generate_command(llm, query: str, shell: str, history: list = []) -> str:
-#     system   = SYSTEM_PROMPTS.get(shell.lower(), SYSTEM_PROMPTS["bash"])
-#     messages = [("system", system)]
 
-#     for pair in history[-MAX_CONTEXT:]:
-#         messages.append(("human",     pair.get("query",   "")))
-#         messages.append(("assistant", pair.get("command", "")))
-
-#     messages.append(("human", query))
-
-#     prompt = ChatPromptTemplate.from_messages(messages)
-#     chain  = prompt | llm | StrOutputParser()
-#     result = await chain.ainvoke({})
-#     result = result.strip().strip("`").strip()
-#     for fence in ["```powershell", "```bash", "```cmd", "```shell", "```"]:
-#         result = result.replace(fence, "")
-#     return result.strip()
 
 
 async def generate_command(llm, query: str, shell: str,
