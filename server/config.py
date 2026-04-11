@@ -11,3 +11,11 @@ SIMILARITY_THRESHOLD = float(os.getenv("SIMILARITY_THRESHOLD", "0.9"))
 MAX_CONTEXT          = int(os.getenv("MAX_CONTEXT", "3"))
 PORT                 = int(os.getenv("ASTRA_PORT", "7771"))
 MAX_RETRIEVAL = int(os.getenv("MAX_RETRIEVAL", "3"))
+
+
+
+MYSQL_HOST     = os.getenv("MYSQL_HOST", "localhost")
+MYSQL_PORT     = int(os.getenv("MYSQL_PORT", "3306"))
+MYSQL_USER     = os.getenv("MYSQL_USER", "root")
+MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD", "")
+MYSQL_DATABASE = os.getenv("MYSQL_DATABASE", "")

@@ -6,7 +6,7 @@ const os       = require("os");
 
 const { SERVER_URL, SIMILARITY_THRESHOLD } = require("./lib/config");
 const { c, fmt, printBanner, printHelp, createSpinner } = require("./lib/display");
-const { detectShell, executeCommand }  = require("./lib/shell");
+const { detectShell, executeCommand,executeMySQLCommand  }  = require("./lib/shell");
 const { pingServer, generateCommand, fetchHistory,
         clearCache, fetchCacheStats, explainCommand } = require("./lib/http");
 const { isDangerous }    = require("./lib/safety");
@@ -28,6 +28,15 @@ async function init() {
   const shell       = detectShell();
   const sessionId   = generateSessionId();
   const sessionHistory = [];
+
+  const mysqlMode = { active: false };
+  const mysqlConfig = {
+    host:     "localhost",
+    port:     3306,
+    user:     "root",
+    password: "",
+    database: "",
+  };
 
   console.log(`  ${fmt.dim("Shell detected:")} ${fmt.success(shell.toUpperCase())}`);
   console.log(`  ${fmt.dim("Session:")}        ${fmt.dim(sessionId)}`);
@@ -76,7 +85,10 @@ async function init() {
 
   const prompt = () => {
     const cwd = process.cwd();
-    rl.question(`${c.gray}${cwd}${c.reset}\n${c.cyan}${c.bold}  astra${c.reset}${c.gray} ❯${c.reset} `, async (input) => {
+    const promptLabel = mysqlMode.active
+      ? `${c.gray}${cwd}${c.reset}\n${c.cyan}${c.bold}  astra${c.reset}${c.yellow} [mysql]${c.reset}${c.gray} ❯${c.reset} `
+      : `${c.gray}${cwd}${c.reset}\n${c.cyan}${c.bold}  astra${c.reset}${c.gray} ❯${c.reset} `;
+    rl.question(promptLabel, async (input) => {
       const trimmed = input.trim();
       if (!trimmed) { prompt(); return; }
 
@@ -85,6 +97,29 @@ async function init() {
 
       if (trimmed === ":shell") {
         console.log(`\n  ${fmt.dim("Detected shell:")} ${fmt.success(shell.toUpperCase())}\n`);
+        prompt(); return;
+      }
+
+      if (trimmed === ":mysql") {
+        mysqlMode.active = !mysqlMode.active;
+        if (mysqlMode.active) {
+          console.log(`\n  ${fmt.success("✓ MySQL mode activated")}`);
+          console.log(`  ${fmt.dim("Type SQL tasks in plain English.")}`);
+          console.log(`  ${fmt.dim("Type :mysql again to exit MySQL mode.\n")}`);
+        } else {
+          console.log(`\n  ${fmt.dim("MySQL mode deactivated.\n")}`);
+        }
+        prompt(); return;
+      }
+
+      if (trimmed.startsWith(":mysql-config")) {
+        const parts = trimmed.split(" ");
+        if (parts[1] === "user")     mysqlConfig.user     = parts[2];
+        if (parts[1] === "password") mysqlConfig.password = parts[2];
+        if (parts[1] === "database") mysqlConfig.database = parts[2];
+        if (parts[1] === "host")     mysqlConfig.host     = parts[2];
+        const display = parts[1] === "password" ? "********" : parts[2];
+        console.log(`\n  ${fmt.success(`✓ MySQL ${parts[1]} updated.`)} ${fmt.dim(`(${display})`)}\n`);
         prompt(); return;
       }
 
@@ -137,11 +172,13 @@ async function init() {
 
       const explainMode = trimmed.endsWith("--explain");
       const query       = explainMode ? trimmed.replace("--explain", "").trim() : trimmed;
+      // Override shell to mysql if in mysql mode
+      const activeShell = mysqlMode.active ? "mysql" : shell;
 
       const spinner = createSpinner("Thinking...");
       let result;
       try {
-        result = await generateCommand(query, shell, sessionId, sessionHistory);
+        result = await generateCommand(query, activeShell, sessionId, sessionHistory);
         spinner.stop();
       } catch (err) {
         spinner.stop(
@@ -196,13 +233,45 @@ async function init() {
 
       if (danger ? (ans === "y" || ans === "yes") : (ans === "" || ans === "y" || ans === "yes")) {
         console.log(`\n  ${fmt.dim("─── Output ─────────────────────────────────")}\n`);
-        const exitCode = await executeCommand(command, shell);
-        console.log(`\n  ${fmt.dim("────────────────────────────────────────────")}`);
-        if (exitCode === 0) {
-          console.log(`  ${fmt.success("✓ Command completed successfully.")}\n`);
-          sessionHistory.push({ query: trimmed, command });
+
+        if (mysqlMode.active) {
+          // Execute via mysql2
+          // Auto-update database if USE statement detected
+          const useMatch = command.match(/^USE\s+(\w+)/i);
+          if (useMatch) {
+            mysqlConfig.database = useMatch[1];
+            console.log(`  ${fmt.dim(`Switched to database: ${useMatch[1]}`)}\n`);
+          }
+          const result = await executeMySQLCommand(command, mysqlConfig);
+          if (result.success) {
+            if (Array.isArray(result.rows) && result.rows.length > 0) {
+              // Print table headers
+              const headers = Object.keys(result.rows[0]);
+              console.log("  " + headers.join("\t"));
+              console.log("  " + headers.map(h => "-".repeat(h.length)).join("\t"));
+              result.rows.forEach(row => {
+                console.log("  " + headers.map(h => row[h] ?? "NULL").join("\t"));
+              });
+            } else {
+              console.log(`  ${fmt.success("✓ Query executed successfully.")}`);
+            }
+            console.log(`\n  ${fmt.dim("────────────────────────────────────────────")}`);
+            console.log(`  ${fmt.success("✓ MySQL query completed.")}\n`);
+            sessionHistory.push({ query: trimmed, command });
+          } else {
+            console.log(`  ${fmt.error(`✗ MySQL error: ${result.error}`)}\n`);
+            console.log(`\n  ${fmt.dim("────────────────────────────────────────────")}`);
+          }
         } else {
-          console.log(`  ${fmt.warn(`⚠  Command exited with code ${exitCode}.`)}\n`);
+          // Normal shell execution
+          const exitCode = await executeCommand(command, shell);
+          console.log(`\n  ${fmt.dim("────────────────────────────────────────────")}`);
+          if (exitCode === 0) {
+            console.log(`  ${fmt.success("✓ Command completed successfully.")}\n`);
+            sessionHistory.push({ query: trimmed, command });
+          } else {
+            console.log(`  ${fmt.warn(`⚠  Command exited with code ${exitCode}.`)}\n`);
+          }
         }
       } else {
         console.log(`  ${fmt.dim("Skipped.\n")}`);

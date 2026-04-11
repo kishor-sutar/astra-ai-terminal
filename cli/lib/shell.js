@@ -37,4 +37,26 @@ function executeCommand(command, shell) {
   });
 }
 
-module.exports = { detectShell, executeCommand };
+// Executes a MySQL query using mysql2 and returns the results or error message
+async function executeMySQLCommand(query, mysqlConfig) {
+  const mysql = require("mysql2/promise");
+  let connection;
+  try {
+    connection = await mysql.createConnection({
+      host:     mysqlConfig.host     || "localhost",
+      port:     mysqlConfig.port     || 3306,
+      user:     mysqlConfig.user     || "root",
+      password: mysqlConfig.password || "",
+      database: mysqlConfig.database || undefined,
+    });
+    const [rows] = await connection.query(query);
+    return { success: true, rows };
+  } catch (err) {
+    return { success: false, error: err.message };
+  } finally {
+    if (connection) await connection.end();
+  }
+}
+
+
+module.exports = { detectShell, executeCommand, executeMySQLCommand };
