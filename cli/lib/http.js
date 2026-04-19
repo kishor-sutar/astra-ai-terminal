@@ -77,5 +77,39 @@ async function explainCommand(command, shell) {
   });
 }
 
+async function fetchMySQLSchema(mysqlConfig) {
+  try {
+    const mysql = require("mysql2/promise");
+    const connection = await mysql.createConnection({
+      host:     mysqlConfig.host     || "localhost",
+      port:     mysqlConfig.port     || 3306,
+      user:     mysqlConfig.user     || "root",
+      password: mysqlConfig.password || "",
+      database: mysqlConfig.database || undefined,
+    });
+    if (!mysqlConfig.database) { await connection.end(); return ""; }
+    const [rows] = await connection.query(
+      `SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE 
+       FROM information_schema.COLUMNS 
+       WHERE TABLE_SCHEMA = ? 
+       ORDER BY TABLE_NAME, ORDINAL_POSITION`,
+      [mysqlConfig.database]
+    );
+    await connection.end();
+
+    // Group by table
+    const schema = {};
+    rows.forEach(r => {
+      if (!schema[r.TABLE_NAME]) schema[r.TABLE_NAME] = [];
+      schema[r.TABLE_NAME].push(`${r.COLUMN_NAME}(${r.DATA_TYPE})`);
+    });
+
+    return Object.entries(schema)
+      .map(([table, cols]) => `${table}: ${cols.join(", ")}`)
+      .join("\n");
+  } catch { return ""; }
+}
+
 module.exports = { fetchJson, pingServer, generateCommand,
-                   fetchHistory, clearCache, fetchCacheStats, explainCommand };
+                   fetchHistory, clearCache, fetchCacheStats,
+                   explainCommand, fetchMySQLSchema };

@@ -43,8 +43,9 @@ ${fmt.primary("  Available Commands:")}
   ${fmt.highlight(":clear")}     ${fmt.dim("Clear the semantic cache")}
   ${fmt.highlight(":shell")}     ${fmt.dim("Show detected shell")}
   ${fmt.highlight(":mysql")}     ${fmt.dim("Toggle MySQL mode on/off")}
-  ${fmt.highlight(":mysql-config password yourMySQLpassword")}  ${fmt.dim("Set MySQL credentials Replace yourMySQLpassword with your actual MySQL root password")}
-  ${fmt.highlight(":mysql-config")}  ${fmt.dim("Set MySQL config — :mysql-config user/password/host/database <value>")}
+  ${fmt.highlight(":mysql-config user <val>")}  ${fmt.dim("Set MySQL user")}
+  ${fmt.highlight(":mysql-config password")}     ${fmt.dim("Set MySQL password (hidden input)")}
+  ${fmt.highlight(":mysql-config database <val>")} ${fmt.dim("Set MySQL database")}
   ${fmt.highlight(":exit")}      ${fmt.dim("Exit Astra-AI")}
   ${fmt.dim("─────────────────────────────────────────────")}
   ${fmt.dim("Or just type what you want to do in plain English.")}

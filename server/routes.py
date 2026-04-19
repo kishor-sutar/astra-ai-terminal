@@ -36,7 +36,11 @@ async def generate(req: CommandRequest, request=None):
 
     shell = req.shell.lower()
 
-    cached_cmd, similarity = search_cache(req.query, shell)
+    # 1️  Semantic cache lookup — skip for MySQL and MongoDB
+    if shell in ("mysql", "mongodb"):
+        cached_cmd, similarity = None, None
+    else:
+        cached_cmd, similarity = search_cache(req.query, shell)
     best_similarity = similarity
 
     if cached_cmd:
@@ -59,8 +63,9 @@ async def generate(req: CommandRequest, request=None):
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"LLM error: {e}")
 
-    # 4️  Store in cache + MongoDB
-    store_cache(req.query, shell, command)
+    # 4️ Store in cache + MongoDB (skip cache for MySQL/MongoDB)
+    if shell not in ("mysql", "mongodb"):
+        store_cache(req.query, shell, command)
     log_command(req.query, shell, command, False, req.session_id,
                 rag_assisted=rag_used)
 

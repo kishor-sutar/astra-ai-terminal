@@ -8,7 +8,8 @@ const { SERVER_URL, SIMILARITY_THRESHOLD } = require("./lib/config");
 const { c, fmt, printBanner, printHelp, createSpinner } = require("./lib/display");
 const { detectShell, executeCommand,executeMySQLCommand  }  = require("./lib/shell");
 const { pingServer, generateCommand, fetchHistory,
-        clearCache, fetchCacheStats, explainCommand } = require("./lib/http");
+        clearCache, fetchCacheStats, explainCommand,
+        executeMongoQuery, fetchMySQLSchema } = require("./lib/http");
 const { isDangerous }    = require("./lib/safety");
 const { trackCommand, trackDangerous, getSummary } = require("./lib/stats");
 
@@ -114,12 +115,28 @@ async function init() {
 
       if (trimmed.startsWith(":mysql-config")) {
         const parts = trimmed.split(" ");
+        if (parts[1] === "password") {
+          // Ask for password securely with hidden input
+          rl.stdoutMuted = true;
+          rl.question(`  ${fmt.warn("Enter MySQL password: ")}`, (pwd) => {
+            rl.stdoutMuted = false;
+            process.stdout.write("\n");
+            mysqlConfig.password = pwd;
+            console.log(`\n  ${fmt.success("✓ MySQL password updated.")}\n`);
+            prompt();
+          });
+          // Mute stdout during input
+          const originalWrite = rl.output.write.bind(rl.output);
+          rl.output.write = (s) => {
+            if (rl.stdoutMuted && s !== "\r\n" && s !== "\n") return;
+            originalWrite(s);
+          };
+          return;
+        }
         if (parts[1] === "user")     mysqlConfig.user     = parts[2];
-        if (parts[1] === "password") mysqlConfig.password = parts[2];
         if (parts[1] === "database") mysqlConfig.database = parts[2];
         if (parts[1] === "host")     mysqlConfig.host     = parts[2];
-        const display = parts[1] === "password" ? "********" : parts[2];
-        console.log(`\n  ${fmt.success(`✓ MySQL ${parts[1]} updated.`)} ${fmt.dim(`(${display})`)}\n`);
+        console.log(`\n  ${fmt.success(`✓ MySQL ${parts[1]} updated.`)} ${fmt.dim(`(${parts[2]})`)}\n`);
         prompt(); return;
       }
 
@@ -173,12 +190,24 @@ async function init() {
       const explainMode = trimmed.endsWith("--explain");
       const query       = explainMode ? trimmed.replace("--explain", "").trim() : trimmed;
       // Override shell to mysql if in mysql mode
-      const activeShell = mysqlMode.active ? "mysql" : shell;
-
+      const activeShell = mysqlMode.active ? "mysql" : mongoMode.active ? "mongodb" : shell;
+      // Use stricter threshold for MySQL to avoid wrong cache hits
+      
       const spinner = createSpinner("Thinking...");
       let result;
       try {
-        result = await generateCommand(query, activeShell, sessionId, sessionHistory);
+        let finalQuery = query;
+        if (mysqlMode.active && mysqlConfig.database) {
+          const schema = await fetchMySQLSchema(mysqlConfig);
+          if (schema) {
+            finalQuery = `Database: ${mysqlConfig.database}\nSchema:\n${schema}\n\nTask: ${query}`;
+          }
+        }
+        result = await generateCommand(
+          finalQuery, activeShell,
+          mysqlMode.active ? null : sessionId,
+          mysqlMode.active ? [] : sessionHistory
+        );
         spinner.stop();
       } catch (err) {
         spinner.stop(
@@ -247,11 +276,26 @@ async function init() {
             if (Array.isArray(result.rows) && result.rows.length > 0) {
               // Print table headers
               const headers = Object.keys(result.rows[0]);
-              console.log("  " + headers.join("\t"));
-              console.log("  " + headers.map(h => "-".repeat(h.length)).join("\t"));
-              result.rows.forEach(row => {
-                console.log("  " + headers.map(h => row[h] ?? "NULL").join("\t"));
+              // Calculate column widths
+              const colWidths = headers.map(h => {
+                const maxDataLen = result.rows.reduce((max, row) => {
+                  return Math.max(max, String(row[h] ?? "NULL").length);
+                }, 0);
+                return Math.max(h.length, maxDataLen);
               });
+
+              const separator = "+-" + colWidths.map(w => "-".repeat(w)).join("-+-") + "-+";
+              const headerRow = "| " + headers.map((h, i) => h.padEnd(colWidths[i])).join(" | ") + " |";
+
+              console.log("  " + separator);
+              console.log("  " + headerRow);
+              console.log("  " + separator);
+              result.rows.forEach(row => {
+                const dataRow = "| " + headers.map((h, i) => String(row[h] ?? "NULL").padEnd(colWidths[i])).join(" | ") + " |";
+                console.log("  " + dataRow);
+              });
+              console.log("  " + separator);
+              console.log(`  ${fmt.dim(`${result.rows.length} row(s) in set`)}`);
             } else {
               console.log(`  ${fmt.success("✓ Query executed successfully.")}`);
             }
