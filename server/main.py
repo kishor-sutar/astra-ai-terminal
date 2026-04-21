@@ -781,6 +781,7 @@ Astra-AI Terminal — Entry Point
 """
 from contextlib import asynccontextmanager
 import uvicorn
+import sys
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -819,5 +820,13 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 app.include_router(router)
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="127.0.0.1", port=PORT,
-                log_level="info", reload=False)
+    
+    dev_mode = "--dev" in sys.argv
+    uvicorn.run(
+        "main:app",
+        host="127.0.0.1",
+        port=PORT,
+        log_level="info",
+        reload=dev_mode,
+        reload_dirs=["./"] if dev_mode else None,
+    )
