@@ -58,6 +58,8 @@ async def generate(req: CommandRequest, request=None):
     
  # 3️ LLM with RAG + multi-turn context
     try:
+        if app.state.llm is None:
+            raise HTTPException(status_code=503, detail="LLM not configured. Please set GEMINI_API_KEY in server/.env and restart the server.")
         command, rag_used = await generate_command(
             app.state.llm, req.query, shell, req.history, retrieved)
     except Exception as e:

@@ -6,7 +6,8 @@ from langchain.schema.output_parser import StrOutputParser
 
 def init_llm():
     if not GEMINI_API_KEY:
-        print("⚠️  GEMINI_API_KEY not set — LLM calls will fail")
+        print("⚠️  GEMINI_API_KEY not set — server starting without LLM")
+        return None
     llm = ChatGoogleGenerativeAI(
         model=GEMINI_MODEL,
         google_api_key=GEMINI_API_KEY,
@@ -15,7 +16,6 @@ def init_llm():
     )
     print(f"✅ LLM ready  (model={GEMINI_MODEL})")
     return llm
-
 
 
 

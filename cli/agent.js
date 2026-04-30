@@ -25,12 +25,71 @@ function askConfirm(rl, question) {
 
 async function init() {
   printBanner();
+  // Check if API key is configured
+  const path = require("path");
+  const fs   = require("fs");
+  const envPath = path.join(__dirname, "..", "server", ".env");
 
+  let envContent = "";
+  try { envContent = fs.readFileSync(envPath, "utf8"); } catch {}
+
+  const apiKeyMatch = envContent.match(/GEMINI_API_KEY=(.*)(\r?\n|$)/);
+  const apiKeyValue = apiKeyMatch ? apiKeyMatch[1].trim() : "";
+  if (!apiKeyValue || apiKeyValue.startsWith("your_")) {
+    console.log(`\n  ${fmt.warn("⚠  No Gemini API key found.")}`);
+    console.log(`  ${fmt.dim("Get your free key at: https://aistudio.google.com/apikey")}\n`);
+    
+  await new Promise((resolve) => {
+      const rl0 = require("readline").createInterface({ input: process.stdin, output: process.stdout });
+      let key = "";
+
+      // Mute output so key is hidden
+      const originalWrite = process.stdout.write.bind(process.stdout);
+      process.stdout.write = (s) => {
+        if (s !== "\r\n" && s !== "\n" && s !== "\r") return true;
+        originalWrite(s);
+      };
+
+      process.stdout.write(`  ${fmt.warn("Enter API key: ")}`);
+
+      process.stdin.setRawMode(true);
+      process.stdin.resume();
+      process.stdin.setEncoding("utf8");
+
+      process.stdin.on("data", function handler(ch) {
+        if (ch === "\n" || ch === "\r" || ch === "\u0004") {
+          process.stdin.setRawMode(false);
+          process.stdin.pause();
+          process.stdin.removeListener("data", handler);
+          process.stdout.write = originalWrite;
+          process.stdout.write("\n");
+          rl0.close();
+          key = key.trim();
+          if (key) {
+            const updated = envContent.includes("GEMINI_API_KEY=")
+              ? envContent.replace(/GEMINI_API_KEY=[^\r\n]*/, `GEMINI_API_KEY=${key}`)
+              : envContent + `\nGEMINI_API_KEY=${key}`;
+            fs.writeFileSync(envPath, updated);
+            console.log(`\n  ${fmt.success("✓ API key saved. Restart the server to apply.")}\n`);
+          }
+          resolve();
+        } else if (ch === "\u0003") {
+          process.exit();
+        } else if (ch === "\u007f") {
+          key = key.slice(0, -1);
+        } else {
+          key += ch;
+          process.stdout.write("*");
+        }
+      });
+    });
+  }
   const shell       = detectShell();
   const sessionId   = generateSessionId();
   const sessionHistory = [];
 
   const mysqlMode = { active: false };
+  const mongoMode = { active: false, database: "astra_ai" };
   const mysqlConfig = {
     host:     "localhost",
     port:     3306,
